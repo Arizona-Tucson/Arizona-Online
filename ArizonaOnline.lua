@@ -1,18 +1,36 @@
 local url = "https://api.arizona-five.com/launcher/servers"
+local requests = require('requests') -- лучше вынести в начало
+
 function main()
     while not isSampAvailable() do wait(0) end
-    sampRegisterChatCommand('online',function (num)
-        if tonumber(num) > 0 and tonumber(num) <= 32 then
-            local res = require('requests').get(url)
-            if (res.status_code  == 200) then
+    
+    sampRegisterChatCommand('online', function(arg)
+        local num = tonumber(arg) -- преобразуем один раз
+        
+        -- Проверяем, что введено именно число, чтобы не было ошибки nil
+        if num and num > 0 and num <= 32 then
+            local res = requests.get(url)
+            if res.status_code == 200 then
                 local data = res.json()
-                for i, po in pairs(data.arizona) do
-                    if po.number == tonumber(num) then
-                        sampAddChatMessage(('{CCCCCC}[ASS]{FFFFFF} Name: %s :d | online: %s/%s :worm: | queue: %s :|'):format(po.name, po.online, po.maxplayers, po.queue), -1)
+                -- Проверяем наличие таблицы arizona в ответе
+                if data and data.arizona then
+                    local found = false
+                    for i, po in pairs(data.arizona) do
+                        if tonumber(po.number) == num then
+                            sampAddChatMessage(('{CCCCCC}[ASS]{FFFFFF} Name: %s | online: %s/%s | queue: %s'):format(po.name, po.online, po.maxplayers, po.queue), -1)
+                            found = true
+                            break
+                        end
                     end
+                    if not found then sampAddChatMessage("Сервер с таким номером не найден.", -1) end
                 end
+            else
+                sampAddChatMessage("Ошибка при запросе к API: " .. res.status_code, -1)
             end
+        else
+            sampAddChatMessage("Используйте: /online [1-32]", -1)
         end
     end)    
-    while true do wait(-1) end
+    
+    wait(-1)
 end
